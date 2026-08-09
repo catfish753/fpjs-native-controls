@@ -10,6 +10,11 @@ const port = process.env.PORT || '8766';
 if (!browser) throw new Error('FIREFOX_BROWSER is required');
 
 const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'firefox-native-control-'));
+if (process.env.FIREFOX_PREFS_JSON) {
+  const prefs = JSON.parse(process.env.FIREFOX_PREFS_JSON);
+  const lines = Object.entries(prefs).map(([name, value]) => `user_pref(${JSON.stringify(name)}, ${JSON.stringify(value)});`);
+  fs.writeFileSync(path.join(profile, 'user.js'), lines.join('\n') + '\n');
+}
 const server = spawn(process.execPath, [path.join(__dirname, 'native-control-server.cjs'), output], {
   env: {...process.env, PORT: port, OUTPUT: output},
   stdio: 'inherit',
@@ -34,4 +39,6 @@ const sleep = milliseconds => new Promise(resolve => setTimeout(resolve, millise
   server.kill('SIGKILL');
   console.error(error);
   process.exitCode = 1;
-}).finally(() => fs.rmSync(profile, {recursive: true, force: true}));
+}).finally(() => {
+  try { fs.rmSync(profile, {recursive: true, force: true, maxRetries: 5, retryDelay: 200}); } catch {}
+});

@@ -46,6 +46,16 @@ const custom = async () => {
     systemFonts[keyword] = {family: style.fontFamily, size: style.fontSize, weight: style.fontWeight};
     element.remove();
   }
+  const emoji = document.createElement('span');
+  emoji.style.whiteSpace = 'nowrap';
+  emoji.innerText = Array.from({length: 80}, (_, index) => String.fromCodePoint(128512 + index)).join('');
+  document.body.append(emoji);
+  const bounds = emoji.getBoundingClientRect();
+  const emojiRect = Object.fromEntries(
+    ['x', 'y', 'left', 'right', 'bottom', 'height', 'top', 'width'].map(key => [key, bounds[key]])
+  );
+  emojiRect.font = getComputedStyle(emoji).fontFamily;
+  emoji.remove();
   const stack = (() => { try { throw new Error('native-control'); } catch (error) { return error.stack; } })();
   return {
     navigator: {
@@ -68,6 +78,7 @@ const custom = async () => {
       devicePixelRatio, innerWidth, innerHeight, outerWidth, outerHeight, screenX, screenY,
     },
     systemFonts,
+    emojiRect,
     canvas: {
       textHash: await hash(canvasImages.textDataUrl),
       geometryHash: await hash(canvasImages.geometryDataUrl),

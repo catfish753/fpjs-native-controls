@@ -56,6 +56,26 @@ const custom = async () => {
   );
   emojiRect.font = getComputedStyle(emoji).fontFamily;
   emoji.remove();
+  const make = (parent, tag, text = '') => {
+    const element = document.createElement(tag); element.textContent = text; parent.append(element); return element;
+  };
+  const math = document.createElement('math');
+  const row = make(math, 'mrow');
+  const underOver = make(row, 'munderover');
+  const scripts = make(underOver, 'mmultiscripts');
+  make(scripts, 'mo', '∏');
+  for (const values of [['𝔈','υ','τ','ρ','σ'], ['𝔇','π','ο','ν','ξ'], ['𝔄','δ','γ','α','β'], ['𝔅','θ','η','ε','ζ'], ['𝔉','ω','ψ','ϕ','χ'], ['ℭ','μ','λ','ι','κ']]) {
+    const item = make(scripts, 'mmultiscripts');
+    make(item, 'mi', values[0]); make(item, 'mi', values[1]); make(item, 'mi', values[2]);
+    make(item, 'mprescripts'); make(item, 'mi', values[3]); make(item, 'mi', values[4]);
+  }
+  math.style.whiteSpace = 'nowrap'; document.body.append(math);
+  const mathBounds = math.getBoundingClientRect();
+  const mathRect = Object.fromEntries(
+    ['x', 'y', 'left', 'right', 'bottom', 'height', 'top', 'width'].map(key => [key, mathBounds[key]])
+  );
+  mathRect.font = getComputedStyle(math).fontFamily;
+  math.remove();
   const stack = (() => { try { throw new Error('native-control'); } catch (error) { return error.stack; } })();
   return {
     navigator: {
@@ -79,6 +99,7 @@ const custom = async () => {
     },
     systemFonts,
     emojiRect,
+    mathRect,
     canvas: {
       textHash: await hash(canvasImages.textDataUrl),
       geometryHash: await hash(canvasImages.geometryDataUrl),

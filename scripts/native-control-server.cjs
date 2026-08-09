@@ -34,6 +34,20 @@ const custom = async () => {
     return {textDataUrl, geometryDataUrl: canvas.toDataURL()};
   };
   const canvasImages = renderCanvas();
+  const measureContext = document.createElement('canvas').getContext('2d');
+  const measureText = font => {
+    measureContext.font = font;
+    const value = measureContext.measureText('Cwm fjordbank gly ' + String.fromCharCode(55357, 56835));
+    return Object.fromEntries([
+      'width', 'actualBoundingBoxLeft', 'actualBoundingBoxRight', 'actualBoundingBoxAscent',
+      'actualBoundingBoxDescent', 'fontBoundingBoxAscent', 'fontBoundingBoxDescent',
+      'emHeightAscent', 'emHeightDescent', 'hangingBaseline', 'alphabeticBaseline', 'ideographicBaseline',
+    ].map(key => [key, value[key]]));
+  };
+  const canvasTextMetrics = {
+    timesNewRoman11pt: measureText('11pt "Times New Roman"'),
+    arial18pt: measureText('18pt Arial'),
+  };
   const canvas = document.createElement('canvas');
   const gl = canvas.getContext('webgl');
   const debug = gl?.getExtension('WEBGL_debug_renderer_info');
@@ -75,6 +89,12 @@ const custom = async () => {
     ['x', 'y', 'left', 'right', 'bottom', 'height', 'top', 'width'].map(key => [key, mathBounds[key]])
   );
   mathRect.font = getComputedStyle(math).fontFamily;
+  const mathFamilyRects = {};
+  for (const family of ['serif', 'STIX Two Math', 'STIXGeneral', 'Times', 'Times New Roman', 'Arial', 'Arial Unicode MS', 'Apple Symbols', 'Symbol', 'Menlo', 'Helvetica']) {
+    math.style.fontFamily = family;
+    const familyBounds = math.getBoundingClientRect();
+    mathFamilyRects[family] = {width: familyBounds.width, height: familyBounds.height};
+  }
   math.remove();
   const stack = (() => { try { throw new Error('native-control'); } catch (error) { return error.stack; } })();
   return {
@@ -100,6 +120,8 @@ const custom = async () => {
     systemFonts,
     emojiRect,
     mathRect,
+    mathFamilyRects,
+    canvasTextMetrics,
     canvas: {
       textHash: await hash(canvasImages.textDataUrl),
       geometryHash: await hash(canvasImages.geometryDataUrl),

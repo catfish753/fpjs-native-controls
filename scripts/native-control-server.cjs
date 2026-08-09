@@ -16,6 +16,24 @@ const page = String.raw`<!doctype html><meta charset="utf-8"><title>native contr
 import FingerprintJS from '/fp.js';
 const hash = async value => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value)))).map(x => x.toString(16).padStart(2, '0')).join('');
 const custom = async () => {
+  const renderCanvas = () => {
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+    canvas.width = 240; canvas.height = 60;
+    context.textBaseline = 'alphabetic'; context.fillStyle = '#f60'; context.fillRect(100, 1, 62, 20);
+    context.fillStyle = '#069'; context.font = '11pt "Times New Roman"';
+    const text = 'Cwm fjordbank gly ' + String.fromCharCode(55357, 56835);
+    context.fillText(text, 2, 15); context.fillStyle = 'rgba(102, 204, 0, 0.2)'; context.font = '18pt Arial';
+    context.fillText(text, 4, 45);
+    const textDataUrl = canvas.toDataURL();
+    canvas.width = 122; canvas.height = 110; context.globalCompositeOperation = 'multiply';
+    for (const [color, x, y] of [['#f2f',40,40], ['#2ff',80,40], ['#ff2',60,80]]) {
+      context.fillStyle = color; context.beginPath(); context.arc(x, y, 40, 0, Math.PI * 2, true); context.closePath(); context.fill();
+    }
+    context.fillStyle = '#f9c'; context.arc(60,60,60,0,Math.PI*2,true); context.arc(60,60,20,0,Math.PI*2,true); context.fill('evenodd');
+    return {textDataUrl, geometryDataUrl: canvas.toDataURL()};
+  };
+  const canvasImages = renderCanvas();
   const canvas = document.createElement('canvas');
   const gl = canvas.getContext('webgl');
   const debug = gl?.getExtension('WEBGL_debug_renderer_info');
@@ -50,6 +68,12 @@ const custom = async () => {
       devicePixelRatio, innerWidth, innerHeight, outerWidth, outerHeight, screenX, screenY,
     },
     systemFonts,
+    canvas: {
+      textHash: await hash(canvasImages.textDataUrl),
+      geometryHash: await hash(canvasImages.geometryDataUrl),
+      textDataUrl: canvasImages.textDataUrl,
+      geometryDataUrl: canvasImages.geometryDataUrl,
+    },
     webgl: gl ? {
       vendor: gl.getParameter(gl.VENDOR), renderer: gl.getParameter(gl.RENDERER),
       unmaskedVendor: debug && gl.getParameter(debug.UNMASKED_VENDOR_WEBGL),

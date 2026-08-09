@@ -1,0 +1,5 @@
+{
+  "name": "fpjs-native-controls",
+  "private": true,
+  "dependencies": {"@fingerprintjs/fingerprintjs": "5.2.0"}
+}

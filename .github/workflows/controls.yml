@@ -22,6 +22,7 @@ jobs:
           $env:FIREFOX_BROWSER = (Resolve-Path 'native-firefox/core/firefox.exe')
           $env:OUTPUT = (Join-Path $pwd 'results/windows-firefox-152.json')
           $env:SCREENSHOT = (Join-Path $pwd 'results/windows-firefox-152.png')
+          $env:FIREFOX_PREFS_JSON = '{"privacy.resistFingerprinting.targetOverrides":"-CanvasRandomization,-EfficientCanvasRandomization"}'
           New-Item -ItemType Directory -Force results | Out-Null
           node scripts/run-native-control.cjs
       - uses: actions/upload-artifact@v4
@@ -50,6 +51,7 @@ jobs:
           FIREFOX_BROWSER="$PWD/native-firefox.app/Contents/MacOS/firefox" \
           OUTPUT="$PWD/results/macos-firefox-152.json" \
           SCREENSHOT="$PWD/results/macos-firefox-152.png" \
+          FIREFOX_PREFS_JSON='{"privacy.resistFingerprinting.targetOverrides":"-CanvasRandomization,-EfficientCanvasRandomization"}' \
           node scripts/run-native-control.cjs
       - uses: actions/upload-artifact@v4
         with:

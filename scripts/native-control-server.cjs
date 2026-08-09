@@ -1,6 +1,7 @@
 const fs = require('node:fs');
 const http = require('node:http');
 const path = require('node:path');
+const zlib = require('node:zlib');
 
 const output = process.env.OUTPUT || process.argv[2] || 'native-control.json';
 const port = Number(process.env.PORT || 8766);
@@ -8,12 +9,29 @@ const fpPath = process.env.FPJS_PATH || path.join(
   path.dirname(require.resolve('@fingerprintjs/fingerprintjs', {paths: [process.cwd()]})),
   'fp.esm.js',
 );
+const proAgentUrl = process.env.FPJS_PRO_AGENT_URL || '';
 let finished = false;
+let proPayload = null;
 const holds = [];
 
 const page = String.raw`<!doctype html><meta charset="utf-8"><title>native control</title>
 <img hidden src="/hold"><pre id=status>collecting</pre><script type=module>
 import FingerprintJS from '/fp.js';
+const proAgentUrl = ${JSON.stringify(proAgentUrl)};
+const mirrored = [];
+const originalFetch = window.fetch.bind(window);
+const mirror = body => {
+  if (!body || typeof body === 'string') return;
+  const bytes = body instanceof ArrayBuffer ? body : ArrayBuffer.isView(body) ? body.buffer.slice(body.byteOffset, body.byteOffset + body.byteLength) : null;
+  if (bytes) mirrored.push(originalFetch('/pro-payload', {method: 'POST', body: bytes}));
+};
+window.fetch = (input, init) => {
+  const url = typeof input === 'string' ? input : input?.url;
+  if (url && !url.startsWith(location.origin)) mirror(init?.body);
+  return originalFetch(input, init);
+};
+const originalSend = XMLHttpRequest.prototype.send;
+XMLHttpRequest.prototype.send = function(body) { mirror(body); return originalSend.call(this, body); };
 const hash = async value => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value)))).map(x => x.toString(16).padStart(2, '0')).join('');
 const custom = async () => {
   const renderCanvas = () => {
@@ -148,22 +166,48 @@ try {
   const started = performance.now();
   const agent = await FingerprintJS.load();
   const result = await agent.get();
+  let pro = null;
+  if (proAgentUrl) {
+    try {
+      const module = await import(proAgentUrl);
+      const agent = await module.start();
+      const value = await agent.get({linkedId: 'native_control'});
+      pro = {visitorId: value.visitorId, requestId: value.requestId};
+    } catch (error) {
+      pro = {error: String(error)};
+    }
+    await Promise.allSettled(mirrored);
+  }
   const payload = {
-    schema: 1,
+    schema: 2,
     collectedAt: new Date().toISOString(),
     elapsedMs: performance.now() - started,
     visitorId: result.visitorId,
     confidence: result.confidence,
     components: result.components,
     custom: await custom(),
+    pro,
   };
-  const response = await fetch('/result', {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify(payload)});
+  const response = await originalFetch('/result', {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify(payload)});
   document.querySelector('#status').textContent = response.ok ? 'done' : 'upload failed';
 } catch (error) {
   await fetch('/result', {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify({schema: 1, error: String(error), stack: error?.stack})});
   document.querySelector('#status').textContent = String(error);
 }
 </script>`;
+
+function decodeProPayload(body) {
+  if (body.length < 16) return null;
+  const random = body[0];
+  const marker = [(body[1] - random + 256) & 255, (body[2] - random + 256) & 255];
+  const padding = (body[3] - random + 256) & 255;
+  const keyOffset = 4 + padding;
+  const key = body.subarray(keyOffset, keyOffset + 9);
+  const encoded = body.subarray(keyOffset + 9);
+  const decoded = Buffer.from(encoded.map((value, index) => value ^ key[index % key.length]));
+  const json = marker[1] === 14 ? zlib.inflateRawSync(decoded) : decoded;
+  return {marker, signals: JSON.parse(json.toString('utf8'))};
+}
 
 const server = http.createServer((request, response) => {
   if (request.url === '/') {
@@ -178,6 +222,15 @@ const server = http.createServer((request, response) => {
     holds.push(response);
     return;
   }
+  if (request.url === '/pro-payload' && request.method === 'POST') {
+    const chunks = [];
+    request.on('data', chunk => chunks.push(chunk));
+    request.on('end', () => {
+      try { proPayload = decodeProPayload(Buffer.concat(chunks)); } catch (error) { proPayload = {error: String(error)}; }
+      response.writeHead(204).end();
+    });
+    return;
+  }
   if (request.url === '/result' && request.method === 'POST') {
     let body = '';
     request.setEncoding('utf8');
@@ -187,6 +240,7 @@ const server = http.createServer((request, response) => {
     });
     request.on('end', () => {
       const value = JSON.parse(body);
+      value.proPayload = proPayload;
       value.collector = {platform: process.platform, arch: process.arch, node: process.version};
       fs.mkdirSync(path.dirname(path.resolve(output)), {recursive: true});
       fs.writeFileSync(output, JSON.stringify(value, null, 2) + '\n');

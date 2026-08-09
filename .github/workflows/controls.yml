@@ -23,6 +23,7 @@ jobs:
           $env:OUTPUT = (Join-Path $pwd 'results/windows-firefox-152.json')
           $env:SCREENSHOT = (Join-Path $pwd 'results/windows-firefox-152.png')
           $env:FIREFOX_PREFS_JSON = '{"privacy.baselineFingerprintingProtection":false,"privacy.fingerprintingProtection":false}'
+          $env:FPJS_PRO_AGENT_URL = 'https://demo.fingerprint.com/DBqbMN7zXxwl4Ei8/web/v4/ahNo3Idb3RiQg69bQglE?ci=jsl/4.0.0'
           New-Item -ItemType Directory -Force results | Out-Null
           node scripts/run-native-control.cjs
       - uses: actions/upload-artifact@v4
@@ -52,6 +53,7 @@ jobs:
           OUTPUT="$PWD/results/macos-firefox-152.json" \
           SCREENSHOT="$PWD/results/macos-firefox-152.png" \
           FIREFOX_PREFS_JSON='{"privacy.baselineFingerprintingProtection":false,"privacy.fingerprintingProtection":false}' \
+          FPJS_PRO_AGENT_URL='https://demo.fingerprint.com/DBqbMN7zXxwl4Ei8/web/v4/ahNo3Idb3RiQg69bQglE?ci=jsl/4.0.0' \
           node scripts/run-native-control.cjs
       - uses: actions/upload-artifact@v4
         with:

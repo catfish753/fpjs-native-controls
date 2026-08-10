@@ -129,6 +129,7 @@ const custom = async () => {
       webdriver: navigator.webdriver,
       pdfViewerEnabled: navigator.pdfViewerEnabled,
     },
+    navigatorPrototype: Object.getOwnPropertyNames(Navigator.prototype),
     screen: {
       width: screen.width, height: screen.height, availWidth: screen.availWidth,
       availHeight: screen.availHeight, availLeft: screen.availLeft, availTop: screen.availTop,
